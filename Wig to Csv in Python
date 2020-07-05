@@ -1,0 +1,37 @@
+"""
+Python: This program will encode a wig file 'GSM730535_WT_NoPi_Nucleosome.wig' to a csv file with (position, data_value, chromosome number) as separate columns
+Data from Zhou Xu, 2011 (https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM730535)
+"""
+data=[]
+update_line=["position", "data_value", "chromosome number"]
+with open('GSM730535_WT_NoPi_Nucleosome.wig', 'r') as f: # Assign f as opening the wig file
+    for line in f: 
+        if "variableStep" in line: # same result by using the condition below
+        #if "chr" in line:
+        #if "chr1" in line or "chr2" in line or "chr3" in line or "chr4" in line or "chr5" in line or "chr6" in line or "chr7" in line or "chr8" in line or "chr9" in line or "chr10" in line or "chr11" in line or "chr12" in line or "chr13" in line or "chr14" in line or "chr15" in line or "chr16" in line: 
+            num = line[19:24] # assign num as "chr# " or "chr##"
+            update_line[2]= num # update the second element of the list "update_list" as the chromosome number
+        elif "name" in line: 
+            continue # remove the track line/definition line
+        else:
+            # for loop to split the position and data_value information from line
+            position = ""
+            m=[]
+            for i in range(len(line)): (
+                try: # get the position seperated
+                    int(line[i])
+                    position = position + line[i]
+                except ValueError: # run when hits the first space  
+                    data_value = line[i+1:(-1)] # get the data_value
+                    break
+            update_line[0] = position
+            update_line[1] = data_value
+            m = update_line + m
+            data.append(m) # add a line (position/data_value, chromosome number) to list "data"
+
+#import as csv
+
+import csv
+with open('WT_NO_Pi_Nucleosome_Python.csv', 'w', newline = '') as h:
+    writer = csv.writer(h)
+    writer.writerows(data)
