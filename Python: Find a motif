@@ -1,0 +1,102 @@
+"""
+[Python: Jupyterlab]Find a motif PLUS 2 flanking bp in a seq: User can search for a specific motif or search for a category of motifs 
+(i.e. ALL of the consensus/1bp/2bp off motifs) Position and occurrence will be reported. You can change the consensus motif and seq 
+to ANY length/nucleotides. Appliable to amino acids search. 
+"""
+consensus_motif= "CACGTG" # Very Portable! Can change the concensus motif here or by asking for user's input
+# Find a motif. Position and occurrence reported
+def find_motif(motif,seq):
+    occurrence=0
+    position=[]
+    while motif in seq:
+        occurrence= occurrence + 1
+        index=seq.find(motif) # Index reports the first position of the motif
+        seq= seq[:index] + seq[index+len(motif):] # Remove the motif at position 'index' for the next position search
+        position.append(index) # a list to summarize all positions
+        print (seq[index-2:index] + " " + motif+ " " + seq[index+1:index+3] + ": " + str(index))
+    if len(position) != 0: # When we find a motif
+        print (motif+ " Position: " + str(position))
+        print ("occurrence of the motif: " + str(occurrence))
+    else: # When we don't find a motif 
+        print (motif + ": Not Found") # Or you can remove or add# to the else condition to ignore any motif that doesn't exist in a given seq
+
+# Fuzzy search of all 1 base pair off motifs
+my_list = ["C", "A", "T", "G"]
+def find_1_bp_off_motif():
+    all_1_bp_off_motifs=[] # Will include all posible variants
+    for i in range(len(consensus_motif)): # len(consensus_motif)='6' is the length of the core motif. Each cycle will change the 'i'th position of the consensus motif
+        for j in range(4): # '4' is length of 'my_list' or the four nucleotides. 'j' specifies the nucleotide. Each cycle will produce one variant at position 'i'
+            variant= ""
+            if my_list[j] == consensus_motif[i]:
+                continue # Remove when the nucleotide is the same as that in consensus motif
+            else:
+                variant = consensus_motif[:i] + str(my_list[j]) + consensus_motif[i+1:]
+                all_1_bp_off_motifs.append(variant) 
+    print ("Number of motifs: " + str(len(all_1_bp_off_motifs)))
+    for i in range(len(all_1_bp_off_motifs)):
+        find_motif(all_1_bp_off_motifs[i], seq)       
+
+# Fuzzy search of all 2 base pair off motifs
+def find_2_bp_off_motif():
+    all_2_bp_off_motifs=[] # Will include all possible variants
+    for i in range(len(consensus_motif)-1): # CACGTG: len(consensus_motif)-1=5 combinations for 2 mutations:( 'i'=0: 'C' + one of 'ACGTG', 'i'=1: 'A' + one of 'CGTG', 'i'=2: 'C' + 'GTG','i'=3: G + 'TG' and 'i'=4: 'T' + 'G')
+        for j in range(4): # Each cycle will produce all variants with two mutations at position 'i' and the other position 
+            one_mutation_variant= ""
+            if my_list[j] == consensus_motif[i]:
+                continue
+            else:
+                one_mutation_variant = consensus_motif[:i] + str(my_list[j]) + consensus_motif[i+1:] # Make a first mutation at the 'i'th position 
+            for k in range(i+1, len(consensus_motif), 1): # Second mutation at position k (not i but after i)
+                for m in range(4): # '4' is length of 'my_list' or the four nucleotides.. Specify substitution by m
+                    variant= one_mutation_variant
+                    if my_list[m] == one_mutation_variant[k]:
+                        continue # Remove when the nucleotide is the same as that of consensus motif
+                    else:
+                        variant = one_mutation_variant[:k] + str(my_list[m]) + one_mutation_variant[k+1:] # Make the second mutation and get the final variant
+                    all_2_bp_off_motifs.append(variant) 
+    print ("Number of motifs: " + str(len(all_2_bp_off_motifs)))
+    for i in range(len(all_2_bp_off_motifs)):
+        find_motif(all_2_bp_off_motifs[i], seq)
+    
+# Sequence PMU2 in C. glabrata
+seq = "TGCAACTGTCAACGTAAAAGTCATCGAGTACTTGAGGGAAACTTTAGGTGTGCACACGTGTGATGAACGTGTAAGCCACTCCCAGGCTTTGTCAGAATACCAGGACCACAGGTATAACAACAGTGATGTCACTGTCCATTTCGACTACCCTGGTAATTACTCGGAGAAGGATCAGCTATGGTATCCCGACCATAGAGAGACTAAAGCAGAAATGGATAGAAGAACAAGAATAGGGTTGCGTGAGATGTTCTCAAGTGTCAATACTACGGACAAGGTGATATCATTGACATGCCATTCCGGTGTTATCGCCAGTGTGCTGAGAAACATAAAACACCCAGCTATAGACCACTTGCAAACGGGGAAACTTGTATATGCTGTGGTAGAGCTATCTAAGGCGCCTACAGATGATCAACCAATGCTTGTTGTGTCATAAAGAATGCCCGGAATTCTACTGATCGAATTGACATGATCGCTTATTTTTATAATCGCTCTCTATGTTTTGATACCTTATGTCGCTAATATTTGACTCTGTATGCCGTTGTATTTGCTTATACATATTATACTATTTTCAATTATTGTTTTTTTTTATCATTTAGTTCATTTATCAACGAATAACCAGGTGTACATTTTTTATTTGCTCTGGTTATCTTTAACATCATACTAAGATCAAAAAAGGGGAAAACAAAAACTAATATCTAAGAGAAACACTAAGCATCTAAGCTCAGTATCTTTACTTTTTAATTAAATATCTCATTTCTCCGCCCCGTGTATGCCTCCTCCATGTATTTTAAATAATCAAATTAAATTAATTGTAAATTAACTTTTTAACATTTTGTTCTTTACCCTGTACCCAATCGATTGCAACTGTTATCCTATCACAAATTTTTTTGTTGAATTCTATGCACTCTTTTTGAATATGTCGATGCATGCTCCTAGCCTCAATTTGTTACTCTCACGTATAGCTGAGATTGTCAAAAGGTTCTTATTTGACTGCTCGTGGGATAACTTGATTTTTCTTGCTCGATAAGCAAATACTCAATTACTTTCTTGACATGCATAAACAATAATGTATGGCCTAATGGAATGAGCCATTTACATGGAATTTTAACAGTACAGCTATATGTAAGATAATCACTGTTGTAAGAATAAATGTAAATATTTAGTGATTGTAAGCGGTTCGTGCGATAGAAATTCTGCGTTATCATTGGTTGGTGTGAAATTGCACCACATATATTGCAGAACATTACTTATCTATGGATTGAAACACCCATGTGCTCTTTTTAATTACTAGAAATTATTATATCAATGCAATCGAGATACACTTCTAGATAACACGATTATTTTGCGATAGGAATAATAGCCAAAAATCCCTCTTCAAACATATAAAAAGGCACAATTATCATATATCATCCTTAGCATTGTTCTCAGATTAAATGATAACTTAGATATCAAATTATAACTATCATCCCATATATCAAATAAATATCCACTCTCGTTACA"
+# Report the length of the seq
+print ("The length of the seq: " + str(len(seq)))
+
+# Ask if the user wants to search for a specific motif or search for all of the consensus/1 bp/2 bp off motif
+x= True
+while x:  # Force the user to enter 0/1. Will rerun if the user enters other intergers
+    choice= int(input("Enter 0 if searching for a specific motif. Enter 1 if searching for a category: ALL of the consensus/1bp/2bp off motifs(Must be 0 or 1!): "))
+
+    if choice== 0: # Searching a specific motif for any times
+        s= True
+        while s:
+            motif= input("Enter your motif(Enter quit to exit): ")
+            # Ensure uppercase
+            motif= motif.upper()
+            if motif == "QUIT":
+                s= False
+            else:
+
+                # Output: position and occurrences
+                find_motif(motif, seq)
+        x= False
+    elif choice == 1: # Searching a category
+        # Ask for consensus motif or 1-bp off motif. While loop ensure entering 0/1
+        s= True
+        while s:
+            num_bp_off= int(input("How many base pair off from the consensus motif(Enter 0/1/2): "))
+            if num_bp_off==0:
+                find_motif(consensus_motif,seq)
+                s= False
+            elif num_bp_off==1:
+                find_1_bp_off_motif()
+                s= False
+            elif num_bp_off==2:
+                find_2_bp_off_motif()
+                s= False
+            else:
+                print ("Invalid Input! Must be 0 or 1!")
+        x= False
+    else: # When the users enters an interger except 0 or 1
+        print ("Must be 0 or 1!")
