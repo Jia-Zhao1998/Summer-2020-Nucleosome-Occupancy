@@ -1,0 +1,89 @@
+---
+title: "Update_07_21.Rmd"
+author: "Jia Zhao"
+date: "7/21/2020"
+output: 
+  html_notebook:
+    toc: yes
+---
+## Load sacCer1.2bit in R and convert to a csv for better analysis in Python
+```{r}
+library(rtracklayer)
+#Convert 2bit sequence data to a data frame and export as csv
+S288c20031001 <- import.2bit('sacCer1.2bit')
+S288cSeqDF <- data.frame(S288c20031001)
+write.csv(S288cSeqDF, file = "S288c_genome_seq.csv")
+```
+
+## Python:  find all consensus and 1-bp-off motifs in *S. cerevisiae*. 
+Export a 'Motif.csv' including information **"chromosome", "motif", "start" and "end"** position. Pay attention to **element[2] = index + occurrence * len(motif)** in find_motif(motif,seq) function, which is different from my previous code. It's a bug I fixed yesterday to get the original start position of a motif after I remove the first detected motif.
+```{python}
+# Find a motif in a seq: Fuzzy search consensus/1 bp off motif 
+consensus_motif= "CACGTG"
+data=[]
+
+# Find a motif 
+def find_motif(motif,seq):
+    occurrence=0
+    start_position=[]
+    while motif in seq:
+        mylist = []
+        element[1] = motif
+        index = seq.find(motif) # Find the first motif
+        seq = seq[:index] + seq[index+len(motif):] # Remove the first detected motif
+        start_position.append(index + occurrence * len(motif)) # Get the original index
+        element[2] = index + occurrence * len(motif)
+        element[3] = element[2] + len(motif)
+        mylist = mylist + element # mylist includes one piece of infomation for one motif
+        occurrence = occurrence + 1
+        data.append(mylist)
+    
+# Fuzzy search of 1 base pair off motif
+my_list = ["C", "A", "T", "G"]
+def find_1_bp_off_motif():
+    b=[]
+    for i in range(6):
+        for j in range(4):
+            a= ""
+            if my_list[j] == consensus_motif[i]:
+                continue
+            else:
+                a = consensus_motif[:i] + str(my_list[j]) + consensus_motif[i+1:]
+                b.append(a)
+    for i in range(len(b)):
+        find_motif(b[i], seq)       
+
+# S288c_genome 20031001 saccer1 (DNAStringSet)converted to csv in R
+# Report all of the consensus and 1-bp off motifs in the genome
+# Information include "chromosome", "motif", "start position", "end position"
+
+element=["chromosome", "motif", "start position", "end position"]
+seq = ""
+with open("S288c_genome_seq.csv", 'r') as f:
+    for line in f:
+        if "chr" in line:
+            line = line.split(sep = ",")
+            element[0] = line[0]
+            seq = line[1]
+            find_motif(consensus_motif, seq)
+            find_1_bp_off_motif()
+        else:
+            continue
+
+import csv
+with open('Motif.csv', 'w', newline = '') as h:
+    writer = csv.writer(h)
+    writer.writerows(data)        
+
+
+```
+
+## Import "Motif.csv" in R
+
+```{r }
+S288cMotif <- read.csv("Motif.csv", header = FALSE)
+colnames(S288cMotif) <- c("chromosome", "motif", "start", "end")
+View(S288cMotif)
+```
+
+
