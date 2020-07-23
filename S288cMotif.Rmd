@@ -1,22 +1,33 @@
 ---
-title: "Update_07_21.Rmd"
+title: "Find_motif.Rmd"
 author: "Jia Zhao"
 date: "7/21/2020"
-output: 
+output:
+  html_document:
+    toc: yes
+    df_print: paged
   html_notebook:
     toc: yes
 ---
-## Load sacCer1.2bit in R and convert to a csv for better analysis in Python
+## Goal
+* Find **"CACGTG"** and 1-bp off motifs in *S.cerevisiae* genome. 
+  + Genome version: sacCer1 (or 10/01/2003,R27-1-1 in SGD). Downloaded [URL](http://hgdownload.soe.ucsc.edu/goldenPath/sacCer1/bigZips/)
+
+### Step 1---Convert 2bit to csv in R
+* 2bit file hard to be read in Python. Converted in R to a data frame: chromosome number + sequence as one line
+  + Result: **'sacCer1.2bit' to 'S288c_genome_seq.csv'**
 ```{r}
 library(rtracklayer)
 #Convert 2bit sequence data to a data frame and export as csv
-S288c20031001 <- import.2bit('sacCer1.2bit')
+S288c20031001 <- import.2bit(con = "/Users/zhaojia/Downloads/sacCer1.2bit")
 S288cSeqDF <- data.frame(S288c20031001)
 write.csv(S288cSeqDF, file = "S288c_genome_seq.csv")
 ```
 
-## Python:  find all consensus and 1-bp-off motifs in *S. cerevisiae*. 
-Export a 'Motif.csv' including information **"chromosome", "motif", "start" and "end"** position. Pay attention to **element[2] = index + occurrence * len(motif)** in find_motif(motif,seq) function, which is different from my previous code. It's a bug I fixed yesterday to get the original start position of a motif after I remove the first detected motif.
+### Step 2---Python:  Motif search
+* Find all consensus and 1-bp-off motifs in *S. cerevisiae*. 
+  + Export a 'Motif.csv' including information **"chromosome", "motif", "start" and "end"** position. 
+  + Note: pay attention to **element[2] = index + occurrence * len(motif)** in find_motif(motif,seq) function, which is different from my previous code. It's a bug I fixed yesterday to get the original start position of a motif after I remove the first detected motif.
 ```{python}
 # Find a motif in a seq: Fuzzy search consensus/1 bp off motif 
 consensus_motif= "CACGTG"
@@ -25,13 +36,12 @@ data=[]
 # Find a motif 
 def find_motif(motif,seq):
     occurrence=0
-    start_position=[]
     while motif in seq:
         mylist = []
         element[1] = motif
         index = seq.find(motif) # Find the first motif
         seq = seq[:index] + seq[index+len(motif):] # Remove the first detected motif
-        start_position.append(index + occurrence * len(motif)) # Get the original index
+        # Get the original index
         element[2] = index + occurrence * len(motif)
         element[3] = element[2] + len(motif)
         mylist = mylist + element # mylist includes one piece of infomation for one motif
@@ -78,12 +88,11 @@ with open('Motif.csv', 'w', newline = '') as h:
 
 ```
 
-## Import "Motif.csv" in R
+### Step 3---Import "Motif.csv" in R
 
 ```{r }
 S288cMotif <- read.csv("Motif.csv", header = FALSE)
 colnames(S288cMotif) <- c("chromosome", "motif", "start", "end")
 View(S288cMotif)
 ```
-
 
