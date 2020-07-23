@@ -1,5 +1,5 @@
 """
-[Python: Jupyterlab]Find a motif PLUS 2 flanking bp in a seq: User can search for a specific motif or search for a category of motifs 
+Find a motif PLUS 2 flanking bp in a seq: User can search for a specific motif or search for a category of motifs 
 (i.e. ALL of the consensus/1bp/2bp off motifs) Position and occurrence will be reported. You can change the consensus motif and seq 
 to ANY length/nucleotides. Appliable to amino acids search. 
 """
@@ -9,17 +9,17 @@ def find_motif(motif,seq):
     occurrence=0
     position=[]
     while motif in seq:
+        index=seq.find(motif)
+        seq= seq[:index] + seq[index+len(motif):] # REMOVE the first detected motif
+        position.append(index + occurrence * len(motif)) # ADD the original start position
+        print (seq[index-2:index] + " " + motif+ " " + seq[index+1:index+3] + ": " + str(index + occurrence * len(motif)))
         occurrence= occurrence + 1
-        index=seq.find(motif) # Index reports the first position of the motif
-        seq= seq[:index] + seq[index+len(motif):] # Remove the motif at position 'index' for the next position search
-        position.append(index) # a list to summarize all positions
-        print (seq[index-2:index] + " " + motif+ " " + seq[index+1:index+3] + ": " + str(index))
-    if len(position) != 0: # When we find a motif
+    if len(position) != 0:
         print (motif+ " Position: " + str(position))
         print ("occurrence of the motif: " + str(occurrence))
-    else: # When we don't find a motif 
-        print (motif + ": Not Found") # Or you can remove or add# to the else condition to ignore any motif that doesn't exist in a given seq
-
+    else: 
+        print (motif + ": Not Found")
+    
 # Fuzzy search of all 1 base pair off motifs
 my_list = ["C", "A", "T", "G"]
 def find_1_bp_off_motif():
