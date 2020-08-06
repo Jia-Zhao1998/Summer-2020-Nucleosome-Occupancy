@@ -1,0 +1,217 @@
+---
+title: "Promoter_Nucleosome_Occupancy"
+author: "Jia Zhao"
+date: "7/23/2020-"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo=FALSE}
+# Load final_table: nucleosome occupancy data
+setwd('/Users/zhaojia/Downloads/')
+my_data <- read.table("GSM730535_WT_NoPi_Nucleosome.wig", header= FALSE, fill = TRUE) # create 4 columns fill in blank if missing value
+head(my_data)
+my_data <- subset(my_data, select= -c(V3, V4)) #two variables
+which(grepl("chrom=chr1", my_data$V2)) # check the row number when the box has chrom=chr1 through 16 in it
+# Use Python to find number of lines for chr 1-16. i.e. we have the first 204188 lines that belong to chr 1
+repeats <- c(204188, 789301, 302985, 1455179, 554446, 259996, 1046755, 531878, 419578, 701524, 664965, 1020219, 888674, 746305, 1056602, 901321)
+chromosome <- c("chr 1", "chr 2", "chr 3", "chr 4","chr 5", "chr 6", "chr 7", "chr 8","chr 9", "chr 10", "chr 11", "chr 12","chr 13", "chr 14", "chr 15", "chr 16")
+my_data <- data.frame(rep(chromosome, repeats), my_data) # add a new column to specify chromosome number
+colnames(my_data) <- c("chromosome","position", "data_value") # Edit column names
+final_table <- my_data # create a copy
+# Remove 17 rows that contain "variableStep" & "chrom =#" (declaration line)or the track definition line
+final_table <- final_table[-c(1,2,204189,993490,1296475,2751654,3306100,3566096,4612851,5144729,5564307,6265831,6930796,7951015,8839689,9585994,10642596),]
+setwd('/Users/zhaojia/Desktop/C16 Nucleosome Occupancy/')
+```
+
+# Function: random_plot
+* random_plot plots nucleosome occupancy by specifying the **data, chromosome, start and end position**. A line plot. x axis removed
+* final_table includes the nucleosome occupancy infomation from Zhou Xu, 2011. WT_No_Pi
+
+```{r}
+random_plot <- function(data= final_table, chromosome="chr 1", start=1, end=1000){
+  # data is a data frame; chromosome is a string/character and a column of data, start and end are integers
+  sub_data <- data[data$chromosome == chromosome,]
+  position <- as.numeric(sub_data$position)
+  sub_data <- sub_data[position >= start & position <= end,]
+  with(sub_data, plot(position, data_value, pch = 19, xlab = "position", ylab= "Nucleosome Occupancy Score", ylim = c(0,max(sub_data$data_value)),xaxt= "n",type = "l"))
+}
+```
+
+```{r}
+try_plot <- function(gene = "YBR093C"){
+  line <- S288cAnnotation_Final[which(S288cAnnotation_Final$gene == gene),]
+  library('ggplot2')
+  sub_data <- final_table[final_table$chromosome == gsub("chr", "chr ", line$chromosome),]
+  if (line$strand == "-"){
+    sub_data <- sub_data[sub_data$position >= line$end + 1 & sub_data$position <= line$end + 800,]
+    ggplot(data = sub_data, aes(x= position, y = data_value)) + geom_line() + ylim(0, max(sub_data$data_value)) + scale_x_continuous(breaks = seq(line$end+800, line$end+1, -100), labels = seq(-800, -1, 100), trans = 'reverse')+ theme_bw() + labs(title = line$gene)
+  }else{
+    sub_data <- sub_data[sub_data$position >= line$start - 800 & sub_data$position <= line$start - 1,]
+    ggplot(data = sub_data, aes(x= position, y = data_value)) + geom_line() + ylim(0, max(sub_data$data_value)) + scale_x_continuous(breaks = seq(line$start - 800, line$start - 1, 100), labels = seq(-800, -1, 100))+ theme_bw() + labs(title = line$gene)
+  }
+  #labs(x = "position", y ="Nucleosome Occupancy Score") + ylim(0, max(sub_data$data_value))
+  print(max(sub_data$data_value))
+}
+```
+
+# Import gene annotation file from SGD
+* S288cAnnotation_Final
++ 'sgdGene.txt' from UCSC:5769 obs of 5 var (unique gene name)
++ # Information from http://hgdownload.soe.ucsc.edu/goldenPath/sacCer1/database/
+```{r}
+setwd('/Users/zhaojia/Downloads/')
+S288cAnnotation <- read.delim(file = 'sgdGene.txt', header = FALSE)
+colnames(S288cAnnotation) <- c("gene", "chromosome", "strand", "start", "end", "cds start", "cds end", "exon counts", "exon start", "exon end", "protein ID")
+S288cAnnotation_Final <- S288cAnnotation[c(-6:-11)]
+
+```
+# Import motif file
+
+```{r}
+setwd('/Users/zhaojia/Desktop/C16 Nucleosome Occupancy/')
+S288cMotif <- read.csv("Motif.csv", header = FALSE)
+colnames(S288cMotif) <- c("chromosome", "motif", "start", "end")
+S288cMotif <- as.data.frame(sapply(S288cMotif, function(x) gsub("\"", "", x))) # remove quotation marks
+```
+
+
+# Function: Nucleosome_Occupancy_GenePlot
+* Argument: data = S288cAnnotation_Final, gene = systematic name of a gene
+**SGD_Annotation_Final** includes gene annotation information of sarCer1 from SGD
+
+Standard name   |Systematic name
+-------------   |---------------
+PHO5            |YBR093C
+PHO84           |YML123C
+PHO8            |YDR481C
+```{r}
+Nucleosome_Occupancy_GenePlot <- function(data = S288cAnnotation_Final, gene = "YBR093C"){
+  line <- data[which(data$gene == gene),]
+  random_plot(chromosome = gsub("chr", "chr ", line$chromosome), start = line$start, end = line$end)
+  title(main = gene, sub = paste("chr", line$chromosome))
+  axis(side = 1, at = seq(line$start, line$end, by = 100))
+}
+```
+
+# Function: Nucleosome_Occupancy_PromoterPlot
+* Argument: data = S288cAnnotation_Final, gene = systematic name of a gene
+* Nucleosome Occupancy Plot of a gene's PROMOTER
+  + dealing with strand by 'if else' statement
+  + verify by ploting the default: PHO5/YBR093C
+```{r}
+Nucleosome_Occupancy_PromoterPlot <- function(data = S288cAnnotation_Final, gene = "YBR093C"){
+  line2 <- data[which(data$gene == gene),]
+  if (line2$strand == "-"){
+    random_plot(chromosome = gsub("chr", "chr ", line2$chromosome), start = line2$end + 1, end = line2$end + 800)
+    title(main = gene, sub = line2$chromosome)
+    axis(1, at = seq(line2$end + 1, line2$end + 800, by =100),labels = seq(0,-799,-100)) # add customized x axis
+  }else{
+    random_plot(chromosome = gsub("chr", "chr ", line2$chromosome), start = line2$start - 800, end = line2$start - 1)
+    title(main = gene, sub = line2$chromosome)
+    axis(1, at = seq(line2$start - 800, line2$start - 1, by = 100), labels = seq(-800, -1, by = 100)) # add customized x axis
+  }
+}
+```
+
+# PHO5 Promoter
+x axis: left to right(from -1 to -800)
+
+```{r}
+Nucleosome_Occupancy_PromoterPlot()
+```
+
+---07/28/2020 update
+# Function Plot_motif 
+```{r}
+# Function to plot motifs
+Plot_motif <- function(gene = "YBR093C"){
+  Nucleosome_Occupancy_PromoterPlot(gene = gene)
+  line3 <- S288cAnnotation_Final[which(S288cAnnotation_Final$gene == gene),] # look for a specific line about the gene
+  if (line3$strand == "-"){ # plot motifs regarding strand info
+    # filter motifs in the promoter region of the gene and plot based on consensus: 'red'/1 bp-off: 'blue'
+    motifs <- S288cMotif[which(S288cMotif$chromosome == line3$chromosome & as.integer(S288cMotif$start) >= line3$end+1 & as.integer(S288cMotif$end) <= line3$end + 800),]
+    segments(as.integer(motifs$start),0,as.integer(motifs$end),0,lwd = 10,col = ifelse(motifs$motif=="CACGTG", "red","blue"))
+    legend("topright", title = "motif", c("CACGTG", "1-bp off"), fill = c("red", "blue"), horiz = TRUE, cex = 0.8)
+  }else{
+    motifs <- S288cMotif[which(S288cMotif$chromosome == line3$chromosome & as.integer(S288cMotif$start) >= line3$start - 800 & as.integer(S288cMotif$end) <= line3$start-1),]
+    segments(as.integer(motifs$start),0,as.integer(motifs$end),0,lwd = 10,col = ifelse(motifs$motif=="CACGTG", "red","blue"))
+    legend("topright", title = "motif", c("CACGTG", "1-bp off"), fill = c("red", "blue"), horiz = TRUE, cex = 0.8)
+  }
+}
+```
+
+# PHO5 Promoter and motifs
+
+```{r}
+Plot_motif()
+```
+
+--- 07/30/2020
+# Function: try_plot
+Plot the nucleosome occupancy of the promoter of a gene; x axis is [-800,-1] for both strands; ggplot2 based
+```{r}
+try_plot <- function(gene = "YBR093C"){
+  line <- S288cAnnotation_Final[which(S288cAnnotation_Final$gene == gene),] # find line for the gene
+  library('ggplot2')
+  sub_data <- final_table[final_table$chromosome == gsub("chr", "chr ", line$chromosome),] # final_table: Nucleosome occupancy data for WT_No_pi
+  if (line$strand == "-"){
+    sub_data <- sub_data[sub_data$position >= line$end + 1 & sub_data$position <= line$end + 800,]# find the nucleosome occupancy data for the promoter of the gene
+    motifs <- S288cMotif[which(S288cMotif$chromosome == line$chromosome & as.integer(S288cMotif$start) >= line$end+1 & as.integer(S288cMotif$end) <= line$end + 800),] # find motifs position in data S288cMotif
+    ggplot(data = sub_data, aes(x= position, y = data_value)) + geom_line() + ylim(0, max(sub_data$data_value)) + scale_x_continuous(breaks = seq(line$end+800, line$end+1, -100), labels = seq(-800, -1, 100), trans = 'reverse')+ theme_classic() + labs(title = line$gene) + annotate("segment", x = as.integer(motifs$start), xend = as.integer(motifs$end), y = 0 ,yend = 0, size = 5, col = ifelse(motifs$motif=="CACGTG", "red","blue")) + theme(text = element_text(size = 20)) # Plot both Nucleosome occupancy data and motifs data
+  }else{
+    sub_data <- sub_data[sub_data$position >= line$start - 800 & sub_data$position <= line$start - 1,]
+    motifs <- S288cMotif[which(S288cMotif$chromosome == line3$chromosome & as.integer(S288cMotif$start) >= line$start - 800 & as.integer(S288cMotif$end) <= line$start-1),]
+    ggplot(data = sub_data, aes(x= position, y = data_value)) + geom_line() + ylim(0, max(sub_data$data_value)) + scale_x_continuous(breaks = seq(line$start - 800, line$start - 1, 100), labels = seq(-800, -1, 100))+ theme_classic() + labs(title = line$gene) + annotate("segment", x = as.integer(motifs$start), xend = as.integer(motifs$end), y = 0 ,yend = 0, size = 5, col = ifelse(motifs$motif=="CACGTG", "red","blue")) + theme(text = element_text(size = 20))
+  }
+  #labs(x = "position", y ="Nucleosome Occupancy Score") + ylim(0, max(sub_data$data_value))
+}
+```
+# Function Plot_motif vs try_plot
+```{r}
+Plot_motif() # Promoter position vs Nucleosome Occupancy Score; x axis depends on strand
+try_plot() # Promoter position vs Nucleosome Occupancy Score; x axis [-800,0] (ggplot2, trans = 'reverse')
+```
+# More examples of try_plot fuunction
+```{r}
+try_plot() # PHO5
+try_plot("YML123C") # PHO84
+try_plot("YDR481C") # PHO8
+```
+
+---08/03/2020
+
+# Function: try_plot_2
+Plot the nucleosome occupancy of the promoter of a gene; x axis is [-900, 1] for both strands; ggplot2 based
+```{r}
+try_plot_2 <- function(gene = "YBR093C"){
+  line <- S288cAnnotation_Final[which(S288cAnnotation_Final$gene == gene),] # find line for the gene
+  library('ggplot2')
+  sub_data <- final_table[final_table$chromosome == gsub("chr", "chr ", line$chromosome),] # final_table: Nucleosome occupancy data for WT_No_pi 
+  if (line$strand == "-"){
+    sub_data <- sub_data[sub_data$position >= line$end -1 & sub_data$position <= line$end + 900,]# find the nucleosome occupancy data for the promoter of the gene
+    motifs <- S288cMotif[which(S288cMotif$chromosome == line$chromosome & as.integer(S288cMotif$start) >= line$end-1 & as.integer(S288cMotif$end) <= line$end + 900),] # find motifs position in data S288cMotif
+    ggplot(data = sub_data, aes(x= position, y = data_value)) + geom_line() + ylim(0, max(sub_data$data_value)) + scale_x_continuous(breaks = seq(line$end+900, line$end-1, -100), labels = seq(-900, 1, 100), trans = 'reverse')+ theme_classic() + labs(title = line$gene) + annotate("segment", x = as.integer(motifs$start), xend = as.integer(motifs$end), y = 0 ,yend = 0, size = 5, col = ifelse(motifs$motif=="CACGTG", "red","blue")) + theme(text = element_text(size = 20)) # Plot both Nucleosome occupancy data and motifs data
+  }else{
+    sub_data <- sub_data[sub_data$position >= line$start - 900 & sub_data$position <= line$start + 1,]
+    motifs <- S288cMotif[which(S288cMotif$chromosome == line3$chromosome & as.integer(S288cMotif$start) >= line$start - 900 & as.integer(S288cMotif$end) <= line$start+1),]
+    ggplot(data = sub_data, aes(x= position, y = data_value)) + geom_line() + ylim(0, max(sub_data$data_value)) + scale_x_continuous(breaks = seq(line$start - 900, line$start + 1, 100), labels = seq(-900, 1, 100))+ theme_classic() + labs(title = line$gene) + annotate("segment", x = as.integer(motifs$start), xend = as.integer(motifs$end), y = 0 ,yend = 0, size = 5, col = ifelse(motifs$motif=="CACGTG", "red","blue")) + theme(text = element_text(size = 20))
+  }
+  #labs(x = "position", y ="Nucleosome Occupancy Score") + ylim(0, max(sub_data$data_value))
+}
+```
+
+# try_plot_2 PHO5 
+```{r}
+try_plot_2() # PHO5
+try_plot_2("YML123C") # PHO84
+try_plot_2("YDR481C") # PHO8
+try_plot_2("YBR296C") # PHO89
+try_plot_2("YDR281C") # PHM6
+try_plot_2("YPL019C") # PHM2
+try_plot_2("YER072W") # PHM4
+```
+
