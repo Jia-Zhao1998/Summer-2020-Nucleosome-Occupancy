@@ -39,7 +39,7 @@ def find_motif(motif,seq):
         index = seq.find(motif) # Find the first motif
         seq = seq[:index] + seq[index+len(motif):] # Remove the first detected motif
         # Get the original index
-        element[2] = index + occurrence * len(motif)
+        element[2] = index + occurrence * len(motif) - 1
         element[3] = element[2] + len(motif)
         mylist = mylist + element # mylist includes one piece of infomation for one motif
         occurrence = occurrence + 1
